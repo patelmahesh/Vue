@@ -63,20 +63,19 @@
             <v-divider class="mx-2" inset vertical></v-divider>
           </v-toolbar>
           <v-data-table :headers="headers" :items="services" class="elevation-1">
-            <template  v-slot:items="props">
-              <tr>
-              <td class="text-xs-right">{{ props.item.id }}</td>
-              <td class="text-xs-right">{{ props.item.name }}</td>
-              <td class="text-xs-right">{{ props.item.helpPhone }}</td>
-              <td class="text-xs-right">{{ props.item.helpURL }}</td>
-              <td class="justify-center layout px-0">
-                <v-icon small class="mr-2" @click="editItem(props.item)">edit</v-icon>
-                <v-icon small @click="deleteItem(props.item)">delete</v-icon>
-              </td>
+            <template v-slot:items="props">
+              <tr @click="loadSubService(props.item.id)">
+                <td class="text-xs-right">{{ props.item.id }}</td>
+                <td class="text-xs-right">{{ props.item.name }}</td>
+                <td class="text-xs-right">{{ props.item.helpPhone }}</td>
+                <td class="text-xs-right">{{ props.item.helpURL }}</td>
+                <td class="justify-center layout px-0">
+                  <v-icon small class="mr-2" @click="editItem(props.item)">edit</v-icon>
+                  <v-icon small @click="deleteItem(props.item)">delete</v-icon>
+                </td>
               </tr>
             </template>
-            <template v-slot:no-data>
-            </template>
+            <template v-slot:no-data></template>
           </v-data-table>
         </v-flex>
       </v-layout>
@@ -85,13 +84,12 @@
   </div>
 </template>
 <script>
-import serviceApi from "@/services/ServiceApi";
-import SubService from '../pages/SubService.vue';
-
+import SubService from "../pages/SubService.vue";
+import { mapGetters } from "vuex";
 export default {
   components: {
-      'subservice': SubService
-    },
+    subservice: SubService
+  },
   data: () => ({
     dialog: false,
     headers: [
@@ -110,32 +108,20 @@ export default {
       { text: "URL", value: "helpURL", align: "right", sortable: false },
       { text: "Actions", value: "actions", align: "right", sortable: false }
     ],
-    services: [],
-    isEdit: false,
-    service: {
-      id: "",
-      name: "",
-      helpPhone: "",
-      helpURL: ""
-    },
-    defaultItem: {
-      id: "",
-      name: "",
-      helpPhone: "",
-      helpURL: ""
-    }
+    isEdit: false
   }),
 
   computed: {
     formTitle() {
-      return this.isEdit === true ?  "Edit Service" : "New Service";
-    }
+      return this.isEdit === true ? "Edit Service" : "New Service";
+    },
+    ...mapGetters(["services", "service", "isEdit"])
   },
-
   watch: {
     dialog(val) {
       val || this.close();
-    }
+    },
+
   },
 
   created() {
@@ -144,52 +130,30 @@ export default {
 
   methods: {
     initialize() {
-      serviceApi
-        .fetchServiceCollection()
-        .then(response => {
-          this.services = response;
-        })
-        .catch(error => {
-          console.log(error);
-        });
+      this.$store.dispatch("getServices");
     },
-    editItem(item) {
+    editItem(service) {
       this.isEdit = true;
       this.dialog = true;
-      this.service = Object.assign({}, item);
-     
+      this.$store.dispatch("editService", service);
     },
 
-    deleteItem(item) {
-      const index = this.services.indexOf(item);
-      serviceApi.deleteService(item.id).catch(error => {
-        console.log(error);
-      });
-      this.services.splice(index, 1);
+    deleteItem(service) {
+      this.$store.dispatch("deleteService", service);
     },
 
     close() {
       this.dialog = false;
-      setTimeout(() => {
-        this.service = Object.assign({}, this.defaultItem);
-        this.isEdit = false;
-      }, 300);
+      this.$store.dispatch("clearService");
     },
 
     async save() {
       const result = await this.$validator.validateAll();
       if (result) {
-       this.service = await serviceApi.saveService(this.service);  
-        if (this.isEdit) {
-          Object.assign(this.services[this.services.findIndex(el => el.id === this.service.id)], this.service);
-        } else {
-          this.services.push(this.service);
-        }
-        
+        this.$store.dispatch("addService");
         this.close();
       }
     },
-
   }
 };
 </script>
